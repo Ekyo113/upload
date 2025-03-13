@@ -1,33 +1,81 @@
-   <!DOCTYPE html>
-   <html lang="en">
-   <head>
-       <meta charset="UTF-8">
-       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-       <title>Upload File</title>
-   </head>
-   <body>
-       <h1>Upload File for XY Plot</h1>
-       <form id="uploadForm">
-           <input type="file" name="file" required>
-           <button type="submit">Upload</button>
-       </form>
-       <div id="result"></div>
-       <script>
-           document.getElementById('uploadForm').onsubmit = async function(event) {
-               event.preventDefault();
-               const formData = new FormData(this);
-               const response = await fetch('http://<your-username>.pythonanywhere.com/upload', {
-                   method: 'POST',
-                   body: formData
-               });
-               const result = await response.json();
-               document.getElementById('result').innerHTML = result.message;
-               if (result.plot_url) {
-                   const img = document.createElement('img');
-                   img.src = result.plot_url;
-                   document.getElementById('result').appendChild(img);
-               }
-           };
-       </script>
-   </body>
-   </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload File</title>
+    <style>
+        #progress {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        #progress-bar {
+            width: 0;
+            height: 30px;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload File for XY Plot</h1>
+    <form id="uploadForm">
+        <input type="file" name="file" required>
+        <button type="submit">Upload</button>
+    </form>
+    <div id="result"></div>
+    <div id="plot"></div>
+    <div id="progress">
+        <div id="progress-bar">0%</div>
+    </div>
+    <script>
+        document.getElementById('uploadForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const xhr = new XMLHttpRequest();
+
+            // 更新進度條
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    document.getElementById('progress-bar').style.width = percentComplete + '%';
+                    document.getElementById('progress-bar').innerText = Math.round(percentComplete) + '%';
+                }
+            });
+
+            // 處理伺服器回應
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    const result = JSON.parse(xhr.responseText);
+                    document.getElementById('result').innerHTML = result.message;
+
+                    // 顯示回傳的數據
+                    if (result.data) {
+                        const dataDiv = document.createElement('div');
+                        dataDiv.innerHTML = `<h2>Returned Data:</h2><pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+                        document.getElementById('result').appendChild(dataDiv);
+                    }
+
+                    // 顯示生成的圖像
+                    if (result.plot_url) {
+                        const img = document.createElement('img');
+                        img.src = result.plot_url;
+                        img.alt = "Generated XY Plot";
+                        document.getElementById('plot').appendChild(img);
+                    }
+                }
+            };
+
+            // 發送請求
+            xhr.open('POST', 'http://<your-username>.pythonanywhere.com/upload', true);
+            xhr.send(formData);
+        };
+    </script>
+</body>
+</html>
